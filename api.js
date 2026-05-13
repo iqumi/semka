@@ -41,7 +41,10 @@ export const GENRE_MAPPING = {
     'Samurai': 'Самураи',
     'Space': 'Космос',
     'Vampire': 'Вампиры',
-    'Harem': 'Гарем'
+    'Harem': 'Гарем',
+    'Demons': 'Демоны',
+    'School': 'Школа',
+    'Magic': 'Магия'
 };
 
 // Базовая функция запроса
@@ -51,6 +54,7 @@ async function jikanFetch(url, retryCount = 0) {
 
         const response = await fetch(url);
 
+        // Jikan API может вернуть 429 при слишком частых запросах
         if (response.status === 429) {
             if (retryCount < 3) {
                 const waitTime = (retryCount + 1) * 2000;
@@ -74,17 +78,45 @@ async function jikanFetch(url, retryCount = 0) {
     }
 }
 
-// УНИВЕРСАЛЬНАЯ функция для получения аниме со ВСЕМИ фильтрами
-export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTerm = '') {
+// УНИВЕРСАЛЬНАЯ функция для получения аниме со ВСЕМИ фильтрами и сортировкой
+export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTerm = '', sortField = 'score', sortDirection = 'desc') {
     try {
-        let url = `${API_BASE_URL}/anime?page=${page}&limit=24&sfw=true`;
+        let url;
 
-        // Если есть поисковый запрос
-        if (searchTerm && searchTerm.trim() !== '') {
+        // Определяем, есть ли поисковый запрос
+        const hasSearchTerm = searchTerm && searchTerm.trim() !== '';
+
+        if (hasSearchTerm) {
+            // ВНИМАНИЕ: при поиске order_by игнорируется API Jikan
+            // Поэтому сортировка будет клиентской для поиска
             url = `${API_BASE_URL}/anime?q=${encodeURIComponent(searchTerm)}&page=${page}&limit=24&sfw=true`;
         } else {
-            // Без поиска - сортируем по рейтингу
-            url += `&order_by=score&sort=desc`;
+            // Без поиска - используем серверную сортировку
+            url = `${API_BASE_URL}/anime?page=${page}&limit=24&sfw=true`;
+
+            // Добавляем серверную сортировку
+            let orderByField = '';
+            switch(sortField) {
+                case 'score':
+                    orderByField = 'score';
+                    break;
+                case 'title':
+                    orderByField = 'title';
+                    break;
+                case 'year':
+                    orderByField = 'start_date';
+                    break;
+                case 'popularity':
+                    orderByField = 'popularity';
+                    break;
+                case 'rank':
+                    orderByField = 'rank';
+                    break;
+                default:
+                    orderByField = 'score';
+            }
+
+            url += `&order_by=${orderByField}&sort=${sortDirection}`;
         }
 
         // Фильтр по типу (tv, movie, ova, ona, special)
@@ -124,7 +156,7 @@ export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTer
             }
         }
 
-        console.log(`Fetching anime with all filters, page ${page}...`, url);
+        console.log(`Fetching anime with filters and ${hasSearchTerm ? 'client' : 'server'} sorting, page ${page}...`, url);
 
         const data = await jikanFetch(url);
 
@@ -136,11 +168,17 @@ export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTer
                     lastPage: data.pagination.last_visible_page,
                     total: data.pagination.items.total,
                     perPage: 24
-                }
+                },
+                // Флаг, использовалась ли серверная сортировка
+                serverSorted: !hasSearchTerm
             };
         }
 
-        return { documents: [], pagination: { currentPage: 1, lastPage: 1, total: 0 } };
+        return {
+            documents: [],
+            pagination: { currentPage: 1, lastPage: 1, total: 0 },
+            serverSorted: false
+        };
     } catch (error) {
         console.error('Error in fetchAnimeWithAllFilters:', error);
         throw error;
@@ -164,6 +202,7 @@ async function getGenreIdByName(genreName) {
 
 // Трансформация данных аниме в единый формат
 function transformAnimeData(anime) {
+    // Определяем статус
     let status = 'completed';
     if (anime.status === 'Currently Airing' || anime.status === 'airing') {
         status = 'airing';
@@ -171,6 +210,7 @@ function transformAnimeData(anime) {
         status = 'upcoming';
     }
 
+    // Определяем тип
     let format = 'tv';
     const typeLower = (anime.type || '').toLowerCase();
     if (typeLower === 'movie') format = 'movie';
@@ -255,4 +295,130 @@ export async function fetchAnimeById(id) {
         console.error('Error fetching anime by id:', error);
         return null;
     }
+}
+
+// Получение топ аниме (для совместимости, но рекомендуется использовать fetchAnimeWithAllFilters)
+export async function fetchTopAnime(page = 1, filter = '') {
+    try {
+        let url = `${API_BASE_URL}/top/anime?page=${page}&limit=24`;
+
+        if (filter && filter !== '') {
+            url += `&type=${filter}`;
+        }
+
+        console.log(`Fetching top anime, page ${page}...`);
+
+        const data = await jikanFetch(url);
+
+        if (data && data.data) {
+            const transformedData = {
+                documents: data.data.map(anime => transformAnimeData(anime)),
+                pagination: {
+                    currentPage: data.pagination.current_page,
+                    lastPage: data.pagination.last_visible_page,
+                    total: data.pagination.items.total,
+                    perPage: 24
+                }
+            };
+
+            cache.anime = transformedData;
+            cache.currentPage = page;
+            cache.lastPage = data.pagination.last_visible_page;
+
+            return transformedData;
+        }
+
+        return { documents: [], pagination: { currentPage: 1, lastPage: 1, total: 0 } };
+    } catch (error) {
+        console.error('Error in fetchTopAnime:', error);
+        throw error;
+    }
+}
+
+// Поиск аниме (для совместимости, но рекомендуется использовать fetchAnimeWithAllFilters)
+export async function searchAnime(searchTerm, page = 1) {
+    try {
+        const url = `${API_BASE_URL}/anime?q=${encodeURIComponent(searchTerm)}&page=${page}&limit=24&sfw=true`;
+
+        console.log(`Searching anime: ${searchTerm}, page ${page}...`);
+
+        const data = await jikanFetch(url);
+
+        if (data && data.data) {
+            return {
+                documents: data.data.map(anime => transformAnimeData(anime)),
+                pagination: {
+                    currentPage: data.pagination.current_page,
+                    lastPage: data.pagination.last_visible_page,
+                    total: data.pagination.items.total,
+                    perPage: 24
+                }
+            };
+        }
+
+        return { documents: [], pagination: { currentPage: 1, lastPage: 1, total: 0 } };
+    } catch (error) {
+        console.error('Error in searchAnime:', error);
+        throw error;
+    }
+}
+
+// Получение аниме с фильтрацией (для совместимости, но рекомендуется использовать fetchAnimeWithAllFilters)
+export async function fetchAnimeWithFilters(page = 1, filters = {}) {
+    try {
+        let url = `${API_BASE_URL}/anime?page=${page}&limit=24&sfw=true&order_by=score&sort=desc`;
+
+        if (filters.type && filters.type !== '') {
+            url += `&type=${filters.type}`;
+        }
+
+        if (filters.status && filters.status !== '') {
+            url += `&status=${filters.status}`;
+        }
+
+        if (filters.year && filters.year !== '') {
+            url += `&start_date=${filters.year}-01-01`;
+        }
+
+        if (filters.genre && filters.genre !== '') {
+            const genreId = await getGenreIdByName(filters.genre);
+            if (genreId) {
+                url += `&genres=${genreId}`;
+            }
+        }
+
+        console.log(`Fetching anime with filters, page ${page}...`);
+
+        const data = await jikanFetch(url);
+
+        if (data && data.data) {
+            return {
+                documents: data.data.map(anime => transformAnimeData(anime)),
+                pagination: {
+                    currentPage: data.pagination.current_page,
+                    lastPage: data.pagination.last_visible_page,
+                    total: data.pagination.items.total,
+                    perPage: 24
+                }
+            };
+        }
+
+        return { documents: [], pagination: { currentPage: 1, lastPage: 1, total: 0 } };
+    } catch (error) {
+        console.error('Error in fetchAnimeWithFilters:', error);
+        throw error;
+    }
+}
+
+// Получение русского названия жанра (утилита)
+export function getRussianGenreName(englishName) {
+    return GENRE_MAPPING[englishName] || englishName;
+}
+
+// Получение английского названия жанра из русского (утилита)
+export function getEnglishGenreName(russianName) {
+    for (const [eng, rus] of Object.entries(GENRE_MAPPING)) {
+        if (rus === russianName) return eng;
+    }
+    return russianName;
 }

@@ -24,6 +24,9 @@ let currentSort = { field: 'score', direction: 'desc' };
 let username = '';
 let isLoading = false;
 
+// Флаг, используется ли серверная сортировка
+let useServerSorting = true;
+
 // Инициализация темы
 function initializeThemeToggle(themeToggles) {
     const savedTheme = localStorage.getItem('theme');
@@ -56,7 +59,7 @@ function showInputError(input) {
     }, 2000);
 }
 
-// Загрузка данных с API (ВСЯ фильтрация на сервере)
+// Загрузка данных с API (с серверной сортировкой)
 async function loadAnime(page = 1) {
     if (isLoading) return;
     isLoading = true;
@@ -65,18 +68,26 @@ async function loadAnime(page = 1) {
     gridContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Загрузка аниме...</p></div>';
 
     try {
-        // ВСЕ фильтры применяются на сервере в одном запросе
-        const data = await fetchAnimeWithAllFilters(page, currentFilters, currentSearchTerm);
+        // Передаём параметры сортировки на сервер
+        const data = await fetchAnimeWithAllFilters(
+            page,
+            currentFilters,
+            currentSearchTerm,
+            currentSort.field,
+            currentSort.direction
+        );
 
         if (data && data.documents) {
             allAnime = [...data.documents];
             totalCount = data.pagination.total;
             lastPage = data.pagination.lastPage;
             currentPage = data.pagination.currentPage;
+            useServerSorting = data.serverSorted;
 
-            // Применяем только сортировку (фильтрация уже на сервере)
             let displayAnime = [...allAnime];
-            if (currentSort.field) {
+
+            // Если серверная сортировка НЕ использовалась (поиск), применяем клиентскую
+            if (!useServerSorting && currentSort.field) {
                 displayAnime = sortAnime(displayAnime, currentSort.field, currentSort.direction);
             }
 
@@ -154,6 +165,7 @@ function handleSearch(searchTerm) {
         currentSearchTerm = searchTerm;
         currentPage = 1;
         await loadAnime(1);
+        updateSortButtonsState();
     }, 500);
 }
 
@@ -175,6 +187,7 @@ function setupFilters() {
         currentFilters = newFilters;
         currentPage = 1;
         await loadAnime(1);
+        updateSortButtonsState();
     };
 
     filterStatus.addEventListener('change', applyFilters);
@@ -190,16 +203,9 @@ function setupSorting() {
     const sortByYearBtn = document.getElementById('sort-by-year');
 
     const applySorting = async () => {
-        // Сортировка применяется к уже загруженным данным
-        let displayAnime = [...allAnime];
-        if (currentSort.field) {
-            displayAnime = sortAnime(displayAnime, currentSort.field, currentSort.direction);
-        }
-
-        const gridContainer = document.getElementById('anime-grid');
-        renderAnime(displayAnime, gridContainer);
-        updateStats(displayAnime, totalCount);
-
+        // При изменении сортировки перезагружаем данные с сервера
+        currentPage = 1;
+        await loadAnime(1);
         updateSortButtonsState();
     };
 
@@ -307,6 +313,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
     const resetBtn = document.getElementById('reset-filters');
 
+    // Добавляем элемент для информации о сортировке
+    const statsContainer = document.querySelector('.stats-container');
+    if (statsContainer && !document.getElementById('sort-info')) {
+        const sortInfo = document.createElement('div');
+        sortInfo.id = 'sort-info';
+        sortInfo.style.cssText = 'font-size: 0.8rem; color: #ffaa00; margin-top: 5px; display: none;';
+        statsContainer.appendChild(sortInfo);
+    }
+
     initializeThemeToggle(themeToggles);
 
     enterButton.addEventListener('click', async () => {
@@ -336,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setupSorting();
             setupPagination();
             await loadAnime(1);
+            updateSortButtonsState();
         }, 300);
     });
 
