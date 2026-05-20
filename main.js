@@ -23,43 +23,53 @@ let currentSearchTerm = '';
 let currentSort = { field: 'score', direction: 'desc' };
 let username = '';
 let isLoading = false;
-
-// Флаг, используется ли серверная сортировка
 let useServerSorting = true;
 
-// Инициализация темы
-function initializeThemeToggle(themeToggles) {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-theme');
-        themeToggles.forEach(t => {
-            t.querySelector('i').className = 'fas fa-sun';
-        });
-    }
+// ─────────────────────────────────────────────
+// Тема
+// ─────────────────────────────────────────────
+function getIsDark() {
+    return !document.body.classList.contains('light-theme');
+}
 
-    themeToggles.forEach(toggle => {
-        toggle.addEventListener('click', () => {
-            document.body.classList.toggle('dark-theme');
-            const isDark = document.body.classList.contains('dark-theme');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            themeToggles.forEach(t => {
-                t.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-            });
-        });
+function applyTheme(isDark) {
+    document.body.classList.toggle('light-theme', !isDark);
+    document.querySelectorAll('.theme-toggle i').forEach(icon => {
+        icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+    });
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+
+function initializeThemeToggle() {
+    const savedTheme = localStorage.getItem('theme');
+    // По умолчанию тёмная тема
+    const isDark = savedTheme !== 'light';
+    applyTheme(isDark);
+
+    document.addEventListener('click', (e) => {
+        const toggle = e.target.closest('.theme-toggle');
+        if (toggle) {
+            applyTheme(!getIsDark());
+        }
     });
 }
 
-// Обработка ошибки ввода имени
+// ─────────────────────────────────────────────
+// Ошибка ввода имени
+// ─────────────────────────────────────────────
 function showInputError(input) {
     input.classList.add('error');
-    input.setAttribute('placeholder', 'Пожалуйста, введите ваше имя');
+    const orig = input.placeholder;
+    input.placeholder = 'Пожалуйста, введите ваше имя';
     setTimeout(() => {
         input.classList.remove('error');
-        input.setAttribute('placeholder', 'Введите ваше имя');
+        input.placeholder = orig;
     }, 2000);
 }
 
-// Загрузка данных с API (с серверной сортировкой)
+// ─────────────────────────────────────────────
+// Загрузка аниме
+// ─────────────────────────────────────────────
 async function loadAnime(page = 1) {
     if (isLoading) return;
     isLoading = true;
@@ -68,7 +78,6 @@ async function loadAnime(page = 1) {
     gridContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Загрузка аниме...</p></div>';
 
     try {
-        // Передаём параметры сортировки на сервер
         const data = await fetchAnimeWithAllFilters(
             page,
             currentFilters,
@@ -86,7 +95,7 @@ async function loadAnime(page = 1) {
 
             let displayAnime = [...allAnime];
 
-            // Если серверная сортировка НЕ использовалась (поиск), применяем клиентскую
+            // Клиентская сортировка только при поиске
             if (!useServerSorting && currentSort.field) {
                 displayAnime = sortAnime(displayAnime, currentSort.field, currentSort.direction);
             }
@@ -111,12 +120,12 @@ async function loadAnime(page = 1) {
     }
 }
 
-// Обновление пагинации
+// ─────────────────────────────────────────────
+// Пагинация
+// ─────────────────────────────────────────────
 function updatePagination() {
     const pageInfo = document.getElementById('page-info');
-    if (pageInfo) {
-        pageInfo.textContent = `Страница ${currentPage} из ${lastPage}`;
-    }
+    if (pageInfo) pageInfo.textContent = `Страница ${currentPage} из ${lastPage}`;
 
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
@@ -124,207 +133,154 @@ function updatePagination() {
     if (nextBtn) nextBtn.disabled = currentPage >= lastPage;
 }
 
-// Загрузка годов и жанров для фильтров
-async function loadFilters() {
-    const years = await fetchYears();
-    const yearFilter = document.getElementById('filter-year');
-    populateYearFilter(yearFilter, years);
+function setupPagination() {
+    document.getElementById('prev-page').addEventListener('click', async () => {
+        if (currentPage > 1 && !isLoading) {
+            currentPage--;
+            await loadAnime(currentPage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
 
-    const genres = await fetchGenres();
-    const genreFilter = document.getElementById('filter-genre');
-    populateGenreFilter(genreFilter, genres);
+    document.getElementById('next-page').addEventListener('click', async () => {
+        if (currentPage < lastPage && !isLoading) {
+            currentPage++;
+            await loadAnime(currentPage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
 }
 
-// Сброс всех фильтров
-async function resetFilters() {
-    currentFilters = {
-        status: '',
-        type: '',
-        year: '',
-        genre: ''
+// ─────────────────────────────────────────────
+// Фильтры
+// ─────────────────────────────────────────────
+async function loadFilters() {
+    const [years, genres] = await Promise.all([fetchYears(), fetchGenres()]);
+    populateYearFilter(document.getElementById('filter-year'), years);
+    populateGenreFilter(document.getElementById('filter-genre'), genres);
+}
+
+function setupFilters() {
+    const applyFilters = async () => {
+        currentFilters = {
+            status: document.getElementById('filter-status').value,
+            type: document.getElementById('filter-type').value,
+            year: document.getElementById('filter-year').value,
+            genre: document.getElementById('filter-genre').value
+        };
+        currentPage = 1;
+        await loadAnime(1);
+        updateSortButtonsState();
     };
+
+    ['filter-status', 'filter-type', 'filter-year', 'filter-genre'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+    });
+}
+
+// ─────────────────────────────────────────────
+// Сброс
+// ─────────────────────────────────────────────
+async function resetFilters() {
+    currentFilters = { status: '', type: '', year: '', genre: '' };
     currentSearchTerm = '';
     currentSort = { field: 'score', direction: 'desc' };
 
     document.getElementById('search-input').value = '';
-    document.getElementById('filter-status').value = '';
-    document.getElementById('filter-type').value = '';
-    document.getElementById('filter-year').value = '';
-    document.getElementById('filter-genre').value = '';
+    ['filter-status', 'filter-type', 'filter-year', 'filter-genre'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
 
     currentPage = 1;
     await loadAnime(currentPage);
     updateSortButtonsState();
 }
 
-// Обработчик поиска с debounce
+// ─────────────────────────────────────────────
+// Поиск с debounce
+// ─────────────────────────────────────────────
 let searchTimeout;
 function handleSearch(searchTerm) {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(async () => {
-        currentSearchTerm = searchTerm;
+        currentSearchTerm = searchTerm.trim();
         currentPage = 1;
         await loadAnime(1);
         updateSortButtonsState();
     }, 500);
 }
 
-// Обработчики фильтров
-function setupFilters() {
-    const filterStatus = document.getElementById('filter-status');
-    const filterType = document.getElementById('filter-type');
-    const filterYear = document.getElementById('filter-year');
-    const filterGenre = document.getElementById('filter-genre');
-
-    const applyFilters = async () => {
-        const newFilters = {
-            status: filterStatus.value,
-            type: filterType.value,
-            year: filterYear.value,
-            genre: filterGenre.value
-        };
-
-        currentFilters = newFilters;
-        currentPage = 1;
-        await loadAnime(1);
-        updateSortButtonsState();
-    };
-
-    filterStatus.addEventListener('change', applyFilters);
-    filterType.addEventListener('change', applyFilters);
-    filterYear.addEventListener('change', applyFilters);
-    filterGenre.addEventListener('change', applyFilters);
-}
-
-// Обработчики сортировки
+// ─────────────────────────────────────────────
+// Сортировка
+// ─────────────────────────────────────────────
 function setupSorting() {
-    const sortByScore = document.getElementById('sort-by-score');
-    const sortByTitle = document.getElementById('sort-by-title');
-    const sortByYearBtn = document.getElementById('sort-by-year');
-
-    const applySorting = async () => {
-        // При изменении сортировки перезагружаем данные с сервера
-        currentPage = 1;
-        await loadAnime(1);
-        updateSortButtonsState();
+    const buttons = {
+        'sort-by-score': 'score',
+        'sort-by-title': 'title',
+        'sort-by-year': 'year'
     };
 
-    sortByScore.addEventListener('click', () => {
-        if (currentSort.field === 'score') {
-            currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
-        } else {
-            currentSort.field = 'score';
-            currentSort.direction = 'desc';
-        }
-        applySorting();
-    });
-
-    sortByTitle.addEventListener('click', () => {
-        if (currentSort.field === 'title') {
-            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-            currentSort.field = 'title';
-            currentSort.direction = 'asc';
-        }
-        applySorting();
-    });
-
-    sortByYearBtn.addEventListener('click', () => {
-        if (currentSort.field === 'year') {
-            currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
-        } else {
-            currentSort.field = 'year';
-            currentSort.direction = 'desc';
-        }
-        applySorting();
-    });
-}
-
-// Обновление состояния кнопок сортировки
-function updateSortButtonsState() {
-    const sortByScore = document.getElementById('sort-by-score');
-    const sortByTitle = document.getElementById('sort-by-title');
-    const sortByYearBtn = document.getElementById('sort-by-year');
-
-    const allSortBtns = [sortByScore, sortByTitle, sortByYearBtn];
-    allSortBtns.forEach(btn => {
-        if (btn) {
-            btn.style.background = '';
-            btn.style.borderColor = '';
-        }
-    });
-
-    let activeBtn = null;
-    if (currentSort.field === 'score') activeBtn = sortByScore;
-    else if (currentSort.field === 'title') activeBtn = sortByTitle;
-    else if (currentSort.field === 'year') activeBtn = sortByYearBtn;
-
-    if (activeBtn) {
-        activeBtn.style.background = 'var(--primary-color)';
-        activeBtn.style.borderColor = 'var(--primary-color)';
-
-        const icon = activeBtn.querySelector('i');
-        if (icon) {
-            if (currentSort.direction === 'asc') {
-                if (currentSort.field === 'title') {
-                    icon.className = 'fas fa-sort-alpha-up';
-                } else {
-                    icon.className = 'fas fa-arrow-up';
-                }
+    Object.entries(buttons).forEach(([id, field]) => {
+        document.getElementById(id).addEventListener('click', async () => {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
             } else {
-                if (currentSort.field === 'title') {
-                    icon.className = 'fas fa-sort-alpha-down';
-                } else {
-                    icon.className = 'fas fa-arrow-down';
-                }
+                currentSort.field = field;
+                currentSort.direction = field === 'title' ? 'asc' : 'desc';
             }
-        }
-    }
-}
-
-// Настройка пагинации
-function setupPagination() {
-    const prevBtn = document.getElementById('prev-page');
-    const nextBtn = document.getElementById('next-page');
-
-    prevBtn.addEventListener('click', async () => {
-        if (currentPage > 1 && !isLoading) {
-            currentPage--;
-            await loadAnime(currentPage);
-        }
-    });
-
-    nextBtn.addEventListener('click', async () => {
-        if (currentPage < lastPage && !isLoading) {
-            currentPage++;
-            await loadAnime(currentPage);
-        }
+            currentPage = 1;
+            await loadAnime(1);
+            updateSortButtonsState();
+        });
     });
 }
 
-// Основная инициализация
+function updateSortButtonsState() {
+    const fieldToId = {
+        'score': 'sort-by-score',
+        'title': 'sort-by-title',
+        'year': 'sort-by-year'
+    };
+
+    Object.entries(fieldToId).forEach(([field, id]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const isActive = currentSort.field === field;
+        btn.style.background = isActive ? 'var(--primary-color)' : '';
+        btn.style.borderColor = isActive ? 'var(--primary-color)' : '';
+        btn.style.color = isActive ? 'white' : '';
+
+        const icon = btn.querySelector('i');
+        if (icon && isActive) {
+            if (field === 'title') {
+                icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-alpha-down' : 'fas fa-sort-alpha-up';
+            } else {
+                icon.className = currentSort.direction === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up';
+            }
+        } else if (icon) {
+            // Сбрасываем иконку
+            if (field === 'score') icon.className = 'fas fa-star';
+            if (field === 'title') icon.className = 'fas fa-sort-alpha-down';
+            if (field === 'year') icon.className = 'fas fa-calendar';
+        }
+    });
+}
+
+// ─────────────────────────────────────────────
+// Инициализация
+// ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     const welcomeScreen = document.getElementById('welcome-screen');
     const mainScreen = document.getElementById('main-screen');
     const usernameInput = document.getElementById('username-input');
     const enterButton = document.getElementById('enter-button');
     const greeting = document.getElementById('greeting');
-    const themeToggles = document.querySelectorAll('.theme-toggle');
     const searchInput = document.getElementById('search-input');
     const resetBtn = document.getElementById('reset-filters');
 
-    // Добавляем элемент для информации о сортировке
-    const statsContainer = document.querySelector('.stats-container');
-    if (statsContainer && !document.getElementById('sort-info')) {
-        const sortInfo = document.createElement('div');
-        sortInfo.id = 'sort-info';
-        sortInfo.style.cssText = 'font-size: 0.8rem; color: #ffaa00; margin-top: 5px; display: none;';
-        statsContainer.appendChild(sortInfo);
-    }
+    initializeThemeToggle();
 
-    initializeThemeToggle(themeToggles);
-
-    enterButton.addEventListener('click', async () => {
+    const startApp = async () => {
         const name = usernameInput.value.trim();
         if (!name) {
             showInputError(usernameInput);
@@ -335,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         welcomeScreen.style.transition = 'opacity 0.3s';
         welcomeScreen.style.opacity = '0';
+
         setTimeout(async () => {
             welcomeScreen.classList.add('hidden');
             mainScreen.classList.remove('hidden');
@@ -342,9 +299,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             mainScreen.style.opacity = '0';
             mainScreen.style.transition = 'opacity 0.3s';
-            setTimeout(() => {
-                mainScreen.style.opacity = '1';
-            }, 50);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    mainScreen.style.opacity = '1';
+                });
+            });
 
             await loadFilters();
             setupFilters();
@@ -353,19 +312,13 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadAnime(1);
             updateSortButtonsState();
         }, 300);
-    });
+    };
 
+    enterButton.addEventListener('click', startApp);
     usernameInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            enterButton.click();
-        }
+        if (e.key === 'Enter') startApp();
     });
 
-    searchInput.addEventListener('input', (e) => {
-        handleSearch(e.target.value);
-    });
-
-    resetBtn.addEventListener('click', async () => {
-        await resetFilters();
-    });
+    searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
+    resetBtn.addEventListener('click', resetFilters);
 });
