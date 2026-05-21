@@ -1,17 +1,16 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AnimeInfo - Каталог аниме</title>
+    <title>AnimeInfo - Anime Catalog</title>
     <link rel="stylesheet" href="style.css" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
-<!-- Экран приветствия -->
 <div id="welcome-screen">
     <div class="welcome-container">
         <div class="welcome-content">
@@ -21,12 +20,12 @@
                     <i class="fas fa-moon"></i>
                 </div>
             </div>
-            <p class="welcome-text">Добро пожаловать в мир аниме!</p>
-            <p class="welcome-subtitle">Откройте для себя тысячи аниме-сериалов, фильмов и OVA</p>
+            <p class="welcome-text">Welcome to the world of anime!</p>
+            <p class="welcome-subtitle">Discover thousands of anime series, movies and OVA</p>
             <div class="input-group">
-                <input type="text" id="username-input" placeholder="Введите ваше имя" />
+                <input type="text" id="username-input" placeholder="Enter your name" />
                 <button id="enter-button">
-                    <span>Войти</span>
+                    <span>Enter</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
@@ -37,7 +36,6 @@
     </div>
 </div>
 
-<!-- Главный экран -->
 <div id="main-screen" class="hidden">
     <header>
         <div class="header-content">
@@ -53,53 +51,52 @@
     </header>
 
     <main>
-        <!-- Панель управления -->
         <section class="controls-section">
             <div class="controls-container">
                 <div class="search-filters">
                     <div class="search-box">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="search-input" placeholder="Поиск аниме..." />
+                        <input type="text" id="search-input" placeholder="Search anime..." />
                     </div>
                     <div class="filters-group">
                         <select id="filter-status">
-                            <option value="">Все статусы</option>
-                            <option value="airing">Выходит</option>
-                            <option value="completed">Завершено</option>
-                            <option value="upcoming">Анонсировано</option>
+                            <option value="">All Status</option>
+                            <option value="airing">Airing</option>
+                            <option value="completed">Completed</option>
+                            <option value="upcoming">Upcoming</option>
                         </select>
                         <select id="filter-type">
-                            <option value="">Все типы</option>
-                            <option value="tv">TV Сериал</option>
-                            <option value="movie">Фильм</option>
+                            <option value="">All Types</option>
+                            <option value="tv">TV Series</option>
+                            <option value="movie">Movie</option>
                             <option value="ova">OVA</option>
                             <option value="ona">ONA</option>
-                            <option value="special">Спешл</option>
+                            <option value="special">Special</option>
                         </select>
                         <select id="filter-year">
-                            <option value="">Все годы</option>
+                            <option value="">All Years</option>
                         </select>
                         <select id="filter-genre">
-                            <option value="">Все жанры</option>
+                            <option value="">All Genres</option>
                         </select>
                     </div>
                 </div>
                 <div class="sort-buttons">
                     <button id="sort-by-score" class="sort-btn">
                         <i class="fas fa-star"></i>
-                        По рейтингу
+                        By Score
                     </button>
                     <button id="sort-by-title" class="sort-btn">
                         <i class="fas fa-sort-alpha-down"></i>
-                        По названию
+                        By Title
                     </button>
                     <button id="sort-by-year" class="sort-btn">
                         <i class="fas fa-calendar"></i>
-                        По году
+                        By Year
                     </button>
                     <button id="reset-filters" class="sort-btn reset-btn">
                         <i class="fas fa-undo"></i>
-                        Сбросить
+                        Reset
                     </button>
                 </div>
             </div>
@@ -108,18 +105,16 @@
             </div>
         </section>
 
-        <!-- Сетка с аниме -->
         <div class="anime-grid" id="anime-grid">
             <div class="loading-spinner">
                 <i class="fas fa-spinner fa-spin"></i>
-                <p>Загрузка аниме...</p>
+                <p>Loading anime...</p>
             </div>
         </div>
 
-        <!-- Пагинация -->
         <div class="pagination" id="pagination">
             <button id="prev-page" class="page-btn"><i class="fas fa-chevron-left"></i></button>
-            <span id="page-info">Страница 1</span>
+            <span id="page-info">Page 1</span>
             <button id="next-page" class="page-btn"><i class="fas fa-chevron-right"></i></button>
         </div>
     </main>

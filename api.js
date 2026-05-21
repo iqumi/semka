@@ -4,36 +4,18 @@ let cache = {
     anime: null,
     currentPage: 1,
     lastPage: 1,
-    genres: null  // кеш жанров
+    genres: null
 };
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-export const GENRE_MAPPING = {
-    'Action': 'Экшен',
-    'Adventure': 'Приключения',
-    'Comedy': 'Комедия',
-    'Drama': 'Драма',
-    'Fantasy': 'Фэнтези',
-    'Horror': 'Ужасы',
-    'Mystery': 'Мистика',
-    'Romance': 'Романтика',
-    'Sci-Fi': 'Научная фантастика',
-    'Slice of Life': 'Повседневность',
-    'Sports': 'Спорт',
-    'Supernatural': 'Сверхъестественное',
-    'Thriller': 'Триллер',
-    'Psychological': 'Психологическое',
-    'Ecchi': 'Эччи',
-    'Mecha': 'Меха',
-    'Historical': 'Историческое',
-    'Award Winning': 'Награды',
-    'Suspense': 'Саспенс',
-    'Boys Love': 'Бойз Лав',
-    'Girls Love': 'Гёрлз Лав',
-    'Avant Garde': 'Авангард',
-    'Gourmet': 'Кулинария'
-};
+const EXCLUDED_GENRES = [
+    'Avant Garde', 'Boys Love', 'Girls Love', 'Erotica', 'Hentai',
+    'Adult Cast', 'Anthropomorphic', 'CGDCT', 'Childcare', 'Combat Sports',
+    'Crossdressing', 'Delinquents', 'Educational', 'Gag Humor', 'Harem',
+    'Historical', 'Idols (Male)', 'Idols (Female)', 'Iyashikei', 'Love Polygon', 'Magical Sex Shift',
+    'Mahou Shoujo', 'Villainess', 'Urban Fantasy', 'Josei', 'Kids'
+];
 
 async function jikanFetch(url, retryCount = 0) {
     try {
@@ -47,7 +29,7 @@ async function jikanFetch(url, retryCount = 0) {
                 await delay(waitTime);
                 return jikanFetch(url, retryCount + 1);
             } else {
-                throw new Error('Слишком много запросов. Попробуйте позже.');
+                throw new Error('Too many requests. Please try again later.');
             }
         }
 
@@ -94,7 +76,7 @@ export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTer
 
         if (data && data.data) {
             return {
-                documents: data.data.map(transformAnimeData),
+                documents: data.data.map(anime => transformAnimeData(anime)),
                 pagination: {
                     currentPage: data.pagination.current_page,
                     lastPage: data.pagination.last_visible_page,
@@ -112,10 +94,9 @@ export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTer
     }
 }
 
-// Кеширует жанры — не делает повторный запрос
 async function getGenreIdByName(genreName) {
     const genres = await fetchGenres();
-    const genre = genres.find(g => g.nameRu === genreName) || genres.find(g => g.name === genreName);
+    const genre = genres.find(g => g.name === genreName);
     return genre ? genre.id : null;
 }
 
@@ -131,18 +112,22 @@ function transformAnimeData(anime) {
     else if (typeLower === 'ona') format = 'ona';
     else if (typeLower === 'special') format = 'special';
 
+    const filteredGenres = (anime.genres || [])
+        .map(g => g.name)
+        .filter(genreName => !EXCLUDED_GENRES.includes(genreName));
+
     return {
         id: anime.mal_id,
         title: anime.title,
         titleEnglish: anime.title_english,
         titleJapanese: anime.title_japanese,
-        description: anime.synopsis || 'Описание отсутствует',
+        description: anime.synopsis || 'Description missing',
         coverImage: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
         bannerImage: anime.trailer?.images?.maximum_image_url || anime.images?.jpg?.image_url,
         year: anime.aired?.prop?.from?.year || new Date().getFullYear(),
         status,
         format,
-        genres: anime.genres?.map(g => g.name) || [],
+        genres: filteredGenres,
         score: anime.score || 0,
         scoredBy: anime.scored_by,
         rank: anime.rank,
@@ -153,22 +138,22 @@ function transformAnimeData(anime) {
         episodeDuration: anime.duration,
         source: anime.source,
         studios: anime.studios?.map(s => s.name) || [],
-        country: 'Япония'
+        country: 'Japan'
     };
 }
 
 export async function fetchGenres() {
-    // Используем кеш чтобы не делать лишние запросы
     if (cache.genres) return cache.genres;
 
     try {
         const data = await jikanFetch(`${API_BASE_URL}/genres/anime`);
         if (data && data.data) {
-            cache.genres = data.data.map(genre => ({
-                id: genre.mal_id,
-                name: genre.name,
-                nameRu: GENRE_MAPPING[genre.name] || genre.name
-            }));
+            cache.genres = data.data
+                .filter(genre => !EXCLUDED_GENRES.includes(genre.name))
+                .map(genre => ({
+                    id: genre.mal_id,
+                    name: genre.name
+                }));
             return cache.genres;
         }
         return [];
@@ -193,15 +178,4 @@ export async function fetchAnimeById(id) {
         console.error('Error fetching anime by id:', error);
         return null;
     }
-}
-
-export function getRussianGenreName(englishName) {
-    return GENRE_MAPPING[englishName] || englishName;
-}
-
-export function getEnglishGenreName(russianName) {
-    for (const [eng, rus] of Object.entries(GENRE_MAPPING)) {
-        if (rus === russianName) return eng;
-    }
-    return russianName;
 }

@@ -1,24 +1,6 @@
-import { STATUS_MAPPINGS, TYPE_MAPPINGS, TYPE_COLORS } from './config.js';
+import { TYPE_COLORS } from './config.js';
 
-const NO_IMAGE_URL = 'https://via.placeholder.com/300x400?text=Нет+изображения';
-
-// Маппинг источников на русский
-const SOURCE_MAPPINGS = {
-    'Manga': 'Манга',
-    'Light novel': 'Ранобэ',
-    'Visual novel': 'Визуальная новелла',
-    'Original': 'Оригинал',
-    'Book': 'Книга',
-    'Card game': 'Карточная игра',
-    'Game': 'Игра',
-    'Music': 'Музыка',
-    'Novel': 'Новелла',
-    'Radio': 'Радио',
-    'Web manga': 'Веб-манга',
-    '4-koma manga': '4-кома манга',
-    'Other': 'Другое',
-    'Unknown': 'Неизвестно'
-};
+const NO_IMAGE_URL = 'https://via.placeholder.com/300x400?text=No+Image';
 
 export function getAnimeImage(anime) {
     return anime.coverImage || anime.bannerImage || NO_IMAGE_URL;
@@ -31,7 +13,7 @@ export function renderAnime(animeList, container) {
         container.innerHTML = `
             <div class="error-message">
                 <i class="fas fa-frown"></i>
-                <p>Аниме не найдены</p>
+                <p>No anime found</p>
             </div>
         `;
         return;
@@ -43,10 +25,10 @@ export function renderAnime(animeList, container) {
         const card = document.createElement('div');
         card.className = 'anime-card';
 
-        const statusText = STATUS_MAPPINGS[anime.status] || 'Неизвестно';
-        const typeText = TYPE_MAPPINGS[anime.format] || anime.format || 'TV';
-        const score = anime.score ? anime.score.toFixed(1) : 'Н/Д';
-        const year = anime.year || 'Н/Д';
+        const statusText = anime.status === 'airing' ? 'Airing' : (anime.status === 'upcoming' ? 'Upcoming' : 'Completed');
+        const typeText = anime.format ? anime.format.toUpperCase() : 'TV';
+        const score = anime.score ? anime.score.toFixed(1) : 'N/A';
+        const year = anime.year || 'N/A';
 
         const shortTitle = anime.title.length > 30 ? anime.title.substring(0, 30) + '...' : anime.title;
         const genresToShow = anime.genres ? anime.genres.slice(0, 3) : [];
@@ -68,7 +50,7 @@ export function renderAnime(animeList, container) {
                 <h3 class="anime-title" title="${anime.title}">${shortTitle}</h3>
                 <div class="anime-details">
                     <span><i class="fas fa-calendar"></i> ${year}</span>
-                    ${anime.episodeCount ? `<span><i class="fas fa-tv"></i> ${anime.episodeCount} эп.</span>` : ''}
+                    ${anime.episodeCount ? `<span><i class="fas fa-tv"></i> ${anime.episodeCount} eps</span>` : ''}
                 </div>
                 <div class="anime-genres">
                     ${genresToShow.map(genre => `<span class="genre-tag">${genre}</span>`).join('')}
@@ -85,11 +67,11 @@ function showAnimeDetails(anime) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
 
-    const statusText = STATUS_MAPPINGS[anime.status] || 'Неизвестно';
-    const typeText = TYPE_MAPPINGS[anime.format] || anime.format || 'TV';
-    const score = anime.score ? anime.score.toFixed(1) : 'Н/Д';
-    const year = anime.year || 'Н/Д';
-    const sourceRu = anime.source ? (SOURCE_MAPPINGS[anime.source] || anime.source) : null;
+    const statusText = anime.status === 'airing' ? 'Airing' : (anime.status === 'upcoming' ? 'Upcoming' : 'Completed');
+    const typeText = anime.format ? anime.format.toUpperCase() : 'TV';
+    const score = anime.score ? anime.score.toFixed(1) : 'N/A';
+    const year = anime.year || 'N/A';
+    const source = anime.source || null;
 
     modal.innerHTML = `
         <div class="modal-content">
@@ -99,32 +81,32 @@ function showAnimeDetails(anime) {
             </div>
             <div class="modal-info">
                 <h2>${anime.title}</h2>
-                ${anime.titleEnglish && anime.titleEnglish !== anime.title ? `<p><strong>Англ. название:</strong> ${anime.titleEnglish}</p>` : ''}
-                ${anime.titleJapanese ? `<p><strong>Яп. название:</strong> ${anime.titleJapanese}</p>` : ''}
+                ${anime.titleEnglish && anime.titleEnglish !== anime.title ? `<p><strong>English title:</strong> ${anime.titleEnglish}</p>` : ''}
+                ${anime.titleJapanese ? `<p><strong>Japanese title:</strong> ${anime.titleJapanese}</p>` : ''}
                 <div class="modal-details">
                     <span class="modal-badge">${typeText}</span>
                     <span class="modal-badge"><i class="fas fa-star"></i> ${score}</span>
                     <span class="modal-badge"><i class="fas fa-calendar"></i> ${year}</span>
                     <span class="modal-badge">${statusText}</span>
-                    ${anime.rank ? `<span class="modal-badge"><i class="fas fa-trophy"></i> Рейтинг: #${anime.rank}</span>` : ''}
-                    ${anime.popularity ? `<span class="modal-badge"><i class="fas fa-fire"></i> Популярность: #${anime.popularity}</span>` : ''}
+                    ${anime.rank ? `<span class="modal-badge"><i class="fas fa-trophy"></i> Rank: #${anime.rank}</span>` : ''}
+                    ${anime.popularity ? `<span class="modal-badge"><i class="fas fa-fire"></i> Popularity: #${anime.popularity}</span>` : ''}
                 </div>
-                ${anime.episodeCount ? `<p><strong>Эпизодов:</strong> ${anime.episodeCount}</p>` : ''}
-                ${anime.episodeDuration && anime.episodeDuration !== 'Unknown' ? `<p><strong>Длительность:</strong> ${anime.episodeDuration}</p>` : ''}
-                ${sourceRu ? `<p><strong>Источник:</strong> ${sourceRu}</p>` : ''}
-                ${anime.studios && anime.studios.length ? `<p><strong>Студии:</strong> ${anime.studios.join(', ')}</p>` : ''}
-                ${anime.members ? `<p><strong>В списках:</strong> ${anime.members.toLocaleString('ru-RU')} чел.</p>` : ''}
+                ${anime.episodeCount ? `<p><strong>Episodes:</strong> ${anime.episodeCount}</p>` : ''}
+                ${anime.episodeDuration && anime.episodeDuration !== 'Unknown' ? `<p><strong>Duration:</strong> ${anime.episodeDuration}</p>` : ''}
+                ${source ? `<p><strong>Source:</strong> ${source}</p>` : ''}
+                ${anime.studios && anime.studios.length ? `<p><strong>Studios:</strong> ${anime.studios.join(', ')}</p>` : ''}
+                ${anime.members ? `<p><strong>Members:</strong> ${anime.members.toLocaleString()}</p>` : ''}
                 ${anime.genres && anime.genres.length ? `
                     <div class="modal-genres">
-                        <strong>Жанры:</strong>
+                        <strong>Genres:</strong>
                         <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px;">
                             ${anime.genres.map(genre => `<span class="genre-tag">${genre}</span>`).join('')}
                         </div>
                     </div>
                 ` : ''}
                 <div class="modal-description">
-                    <strong>Описание:</strong>
-                    <p>${anime.description || 'Описание отсутствует'}</p>
+                    <strong>Description:</strong>
+                    <p>${anime.description || 'Description missing'}</p>
                 </div>
             </div>
         </div>
@@ -152,7 +134,7 @@ function closeModal(modal) {
 
 export function populateYearFilter(selectElement, years) {
     if (!selectElement || !years) return;
-    selectElement.innerHTML = '<option value="">Все годы</option>';
+    selectElement.innerHTML = '<option value="">All Years</option>';
     years.forEach(year => {
         const option = document.createElement('option');
         option.value = year;
@@ -163,11 +145,14 @@ export function populateYearFilter(selectElement, years) {
 
 export function populateGenreFilter(selectElement, genres) {
     if (!selectElement || !genres) return;
-    selectElement.innerHTML = '<option value="">Все жанры</option>';
-    genres.forEach(genre => {
+
+    const sortedGenres = [...genres].sort((a, b) => a.name.localeCompare(b.name));
+
+    selectElement.innerHTML = '<option value="">All Genres</option>';
+    sortedGenres.forEach(genre => {
         const option = document.createElement('option');
-        option.value = genre.nameRu;
-        option.textContent = genre.nameRu;
+        option.value = genre.name;
+        option.textContent = genre.name;
         selectElement.appendChild(option);
     });
 }
@@ -187,9 +172,9 @@ export function updateStats(animeList, totalCount = null) {
     animeList.forEach(anime => anime.genres?.forEach(g => uniqueGenres.add(g)));
 
     statsElement.innerHTML = `
-        <i class="fas fa-tv"></i> Показано: ${displayCount} из ${total.toLocaleString('ru-RU')} &nbsp;|&nbsp;
-        <i class="fas fa-star"></i> Средний рейтинг: ${avgScore} &nbsp;|&nbsp;
-        <i class="fas fa-tags"></i> Жанров на странице: ${uniqueGenres.size}
+        <i class="fas fa-tv"></i> Showing: ${displayCount} of ${total.toLocaleString()} &nbsp;|&nbsp;
+        <i class="fas fa-star"></i> Average Score: ${avgScore} &nbsp;|&nbsp;
+        <i class="fas fa-tags"></i> Genres on page: ${uniqueGenres.size}
     `;
 }
 
@@ -203,7 +188,7 @@ export function sortAnime(animeList, sortField, sortDirection = 'desc') {
                 return sortDirection === 'asc' ? diff : -diff;
             }
             case 'title': {
-                const cmp = a.title.toLowerCase().localeCompare(b.title.toLowerCase(), 'ru');
+                const cmp = a.title.toLowerCase().localeCompare(b.title.toLowerCase());
                 return sortDirection === 'asc' ? cmp : -cmp;
             }
             case 'year': {

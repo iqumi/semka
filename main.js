@@ -1,4 +1,3 @@
-// main.js
 import { fetchAnimeWithAllFilters, fetchGenres, fetchYears } from './api.js';
 import {
     renderAnime,
@@ -8,7 +7,6 @@ import {
     sortAnime
 } from './ui.js';
 
-// Состояние приложения
 let allAnime = [];
 let currentPage = 1;
 let lastPage = 1;
@@ -25,9 +23,6 @@ let username = '';
 let isLoading = false;
 let useServerSorting = true;
 
-// ─────────────────────────────────────────────
-// Тема
-// ─────────────────────────────────────────────
 function getIsDark() {
     return !document.body.classList.contains('light-theme');
 }
@@ -42,7 +37,6 @@ function applyTheme(isDark) {
 
 function initializeThemeToggle() {
     const savedTheme = localStorage.getItem('theme');
-    // По умолчанию тёмная тема
     const isDark = savedTheme !== 'light';
     applyTheme(isDark);
 
@@ -54,28 +48,22 @@ function initializeThemeToggle() {
     });
 }
 
-// ─────────────────────────────────────────────
-// Ошибка ввода имени
-// ─────────────────────────────────────────────
 function showInputError(input) {
     input.classList.add('error');
     const orig = input.placeholder;
-    input.placeholder = 'Пожалуйста, введите ваше имя';
+    input.placeholder = 'Please enter your name';
     setTimeout(() => {
         input.classList.remove('error');
         input.placeholder = orig;
     }, 2000);
 }
 
-// ─────────────────────────────────────────────
-// Загрузка аниме
-// ─────────────────────────────────────────────
 async function loadAnime(page = 1) {
     if (isLoading) return;
     isLoading = true;
 
     const gridContainer = document.getElementById('anime-grid');
-    gridContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Загрузка аниме...</p></div>';
+    gridContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Loading anime...</p></div>';
 
     try {
         const data = await fetchAnimeWithAllFilters(
@@ -95,7 +83,6 @@ async function loadAnime(page = 1) {
 
             let displayAnime = [...allAnime];
 
-            // Клиентская сортировка только при поиске
             if (!useServerSorting && currentSort.field) {
                 displayAnime = sortAnime(displayAnime, currentSort.field, currentSort.direction);
             }
@@ -103,7 +90,7 @@ async function loadAnime(page = 1) {
             renderAnime(displayAnime, gridContainer);
             updateStats(displayAnime, totalCount);
         } else {
-            gridContainer.innerHTML = '<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>Не удалось загрузить данные</p></div>';
+            gridContainer.innerHTML = '<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>Failed to load data</p></div>';
         }
 
         updatePagination();
@@ -112,20 +99,17 @@ async function loadAnime(page = 1) {
         console.error('Error loading anime:', error);
         gridContainer.innerHTML = `<div class="error-message">
             <i class="fas fa-exclamation-triangle"></i>
-            <p>Ошибка загрузки данных: ${error.message}</p>
-            <p>Пожалуйста, попробуйте обновить страницу</p>
+            <p>Data loading error: ${error.message}</p>
+            <p>Please try refreshing the page</p>
         </div>`;
     } finally {
         isLoading = false;
     }
 }
 
-// ─────────────────────────────────────────────
-// Пагинация
-// ─────────────────────────────────────────────
 function updatePagination() {
     const pageInfo = document.getElementById('page-info');
-    if (pageInfo) pageInfo.textContent = `Страница ${currentPage} из ${lastPage}`;
+    if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${lastPage}`;
 
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
@@ -151,9 +135,6 @@ function setupPagination() {
     });
 }
 
-// ─────────────────────────────────────────────
-// Фильтры
-// ─────────────────────────────────────────────
 async function loadFilters() {
     const [years, genres] = await Promise.all([fetchYears(), fetchGenres()]);
     populateYearFilter(document.getElementById('filter-year'), years);
@@ -178,9 +159,6 @@ function setupFilters() {
     });
 }
 
-// ─────────────────────────────────────────────
-// Сброс
-// ─────────────────────────────────────────────
 async function resetFilters() {
     currentFilters = { status: '', type: '', year: '', genre: '' };
     currentSearchTerm = '';
@@ -196,9 +174,6 @@ async function resetFilters() {
     updateSortButtonsState();
 }
 
-// ─────────────────────────────────────────────
-// Поиск с debounce
-// ─────────────────────────────────────────────
 let searchTimeout;
 function handleSearch(searchTerm) {
     clearTimeout(searchTimeout);
@@ -210,9 +185,6 @@ function handleSearch(searchTerm) {
     }, 500);
 }
 
-// ─────────────────────────────────────────────
-// Сортировка
-// ─────────────────────────────────────────────
 function setupSorting() {
     const buttons = {
         'sort-by-score': 'score',
@@ -258,7 +230,6 @@ function updateSortButtonsState() {
                 icon.className = currentSort.direction === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up';
             }
         } else if (icon) {
-            // Сбрасываем иконку
             if (field === 'score') icon.className = 'fas fa-star';
             if (field === 'title') icon.className = 'fas fa-sort-alpha-down';
             if (field === 'year') icon.className = 'fas fa-calendar';
@@ -266,9 +237,6 @@ function updateSortButtonsState() {
     });
 }
 
-// ─────────────────────────────────────────────
-// Инициализация
-// ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     const welcomeScreen = document.getElementById('welcome-screen');
     const mainScreen = document.getElementById('main-screen');
@@ -295,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(async () => {
             welcomeScreen.classList.add('hidden');
             mainScreen.classList.remove('hidden');
-            greeting.textContent = `Привет, ${username}! 👋`;
+            greeting.textContent = `Hello, ${username}!`;
 
             mainScreen.style.opacity = '0';
             mainScreen.style.transition = 'opacity 0.3s';
