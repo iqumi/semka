@@ -13,8 +13,8 @@ const EXCLUDED_GENRES = [
     'Avant Garde', 'Boys Love', 'Girls Love', 'Erotica', 'Hentai',
     'Adult Cast', 'Anthropomorphic', 'CGDCT', 'Childcare', 'Combat Sports',
     'Crossdressing', 'Delinquents', 'Educational', 'Gag Humor', 'Harem',
-    'Historical', 'Idols', 'Iyashikei', 'Love Polygon', 'Magical Sex Shift',
-    'Mahou Shoujo', 'Villainess', 'Urban Fantasy', 'Josei', 'Kids'
+    'Historical', 'Idols (Male)', 'Idols (Female)', 'Iyashikei', 'Love Polygon', 'Magical Sex Shift',
+    'Mahou Shoujo', 'Villainess', 'Urban Fantasy', 'Josei', 'Kids', 'Ecchi'
 ];
 
 async function jikanFetch(url, retryCount = 0) {
