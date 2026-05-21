@@ -189,7 +189,8 @@ function setupSorting() {
     const buttons = {
         'sort-by-score': 'score',
         'sort-by-title': 'title',
-        'sort-by-year': 'year'
+        'sort-by-year': 'year',
+        'sort-by-popularity': 'popularity'
     };
 
     Object.entries(buttons).forEach(([id, field]) => {
@@ -211,7 +212,8 @@ function updateSortButtonsState() {
     const fieldToId = {
         'score': 'sort-by-score',
         'title': 'sort-by-title',
-        'year': 'sort-by-year'
+        'year': 'sort-by-year',
+        'popularity': 'sort-by-popularity'
     };
 
     Object.entries(fieldToId).forEach(([field, id]) => {
@@ -233,6 +235,7 @@ function updateSortButtonsState() {
             if (field === 'score') icon.className = 'fas fa-star';
             if (field === 'title') icon.className = 'fas fa-sort-alpha-down';
             if (field === 'year') icon.className = 'fas fa-calendar';
+            if (field === 'popularity') icon.className = 'fas fa-fire';
         }
     });
 }

@@ -13,7 +13,7 @@ const EXCLUDED_GENRES = [
     'Avant Garde', 'Boys Love', 'Girls Love', 'Erotica', 'Hentai',
     'Adult Cast', 'Anthropomorphic', 'CGDCT', 'Childcare', 'Combat Sports',
     'Crossdressing', 'Delinquents', 'Educational', 'Gag Humor', 'Harem',
-    'Historical', 'Idols (Male)', 'Idols (Female)', 'Iyashikei', 'Love Polygon', 'Magical Sex Shift',
+    'Historical', 'Idols', 'Iyashikei', 'Love Polygon', 'Magical Sex Shift',
     'Mahou Shoujo', 'Villainess', 'Urban Fantasy', 'Josei', 'Kids'
 ];
 
@@ -50,9 +50,22 @@ export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTer
         if (hasSearchTerm) {
             url = `${API_BASE_URL}/anime?q=${encodeURIComponent(searchTerm)}&page=${page}&limit=24&sfw=true`;
         } else {
-            const orderByMap = { score: 'score', title: 'title', year: 'start_date', popularity: 'popularity', rank: 'rank' };
-            const orderByField = orderByMap[sortField] || 'score';
-            url = `${API_BASE_URL}/anime?page=${page}&limit=24&sfw=true&order_by=${orderByField}&sort=${sortDirection}`;
+            let orderByField = 'score';
+            let sortDir = sortDirection;
+
+            if (sortField === 'year') {
+                orderByField = 'start_date';
+            } else if (sortField === 'score') {
+                orderByField = 'score';
+            } else if (sortField === 'title') {
+                orderByField = 'title';
+            } else if (sortField === 'popularity') {
+                orderByField = 'popularity';
+            } else {
+                orderByField = 'score';
+            }
+
+            url = `${API_BASE_URL}/anime?page=${page}&limit=24&sfw=true&order_by=${orderByField}&sort=${sortDir}`;
         }
 
         if (filters.type && filters.type !== '') url += `&type=${filters.type}`;
@@ -75,15 +88,29 @@ export async function fetchAnimeWithAllFilters(page = 1, filters = {}, searchTer
         const data = await jikanFetch(url);
 
         if (data && data.data) {
+            let documents = data.data.map(anime => transformAnimeData(anime));
+
+            if (!hasSearchTerm && sortField === 'year') {
+                documents = documents.sort((a, b) => {
+                    const yearA = a.year || 0;
+                    const yearB = b.year || 0;
+                    if (sortDirection === 'desc') {
+                        return yearB - yearA;
+                    } else {
+                        return yearA - yearB;
+                    }
+                });
+            }
+
             return {
-                documents: data.data.map(anime => transformAnimeData(anime)),
+                documents: documents,
                 pagination: {
                     currentPage: data.pagination.current_page,
                     lastPage: data.pagination.last_visible_page,
                     total: data.pagination.items.total,
                     perPage: 24
                 },
-                serverSorted: !hasSearchTerm
+                serverSorted: !hasSearchTerm && sortField !== 'year'
             };
         }
 
@@ -121,10 +148,10 @@ function transformAnimeData(anime) {
         title: anime.title,
         titleEnglish: anime.title_english,
         titleJapanese: anime.title_japanese,
-        description: anime.synopsis || 'Description missing',
+        description: (anime.synopsis || 'Description missing').replace(/\s*\[Written by MAL Rewrite\]\s*$/, ''),
         coverImage: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
         bannerImage: anime.trailer?.images?.maximum_image_url || anime.images?.jpg?.image_url,
-        year: anime.aired?.prop?.from?.year || new Date().getFullYear(),
+        year: anime.aired?.prop?.from?.year || 0,
         status,
         format,
         genres: filteredGenres,
